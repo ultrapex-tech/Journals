@@ -1,0 +1,618 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>Patient Blood Management Clinical Decision Support Dashboard</title>
+    <style>
+        :root {
+            --medical-blue: #1a365d;
+            --medical-blue-hover: #2a4365;
+            --slate-teal: #2c7a7b;
+            --text-main: #2d3748;
+            --text-muted: #718096;
+            --bg-light: #f7fafc;
+            --bg-card: #ffffff;
+            --border-light: #e2e8f0;
+            --accent-red: #c53030;
+            --accent-red-light: #fff5f5;
+            --font-stack: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            -webkit-tap-highlight-color: transparent; 
+        }
+
+        body {
+            font-family: var(--font-stack);
+            background-color: var(--bg-light);
+            color: var(--text-main);
+            line-height: 1.5;
+            -webkit-font-smoothing: antialiased; 
+            padding: max(30px, env(safe-area-inset-top)) max(15px, env(safe-area-inset-right)) max(30px, env(safe-area-inset-bottom)) max(15px, env(safe-area-inset-left));
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        header {
+            background-color: var(--bg-card);
+            border: 1px solid var(--border-light);
+            border-top: 4px solid var(--medical-blue);
+            padding: 25px;
+            border-radius: 6px;
+            margin-bottom: 25px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+        }
+
+        .document-tag {
+            background-color: #ebf8ff;
+            color: #2b6cb0;
+            padding: 4px 10px;
+            font-size: 0.75rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            border-radius: 4px;
+            display: inline-block;
+            margin-bottom: 12px;
+            letter-spacing: 0.5px;
+        }
+
+        h1 {
+            font-size: 1.6rem;
+            color: var(--medical-blue);
+            font-weight: 700;
+            margin-bottom: 10px;
+        }
+
+        .header-meta {
+            font-size: 0.85rem;
+            color: var(--text-muted);
+            border-top: 1px solid var(--border-light);
+            padding-top: 12px;
+            margin-top: 12px;
+            display: flex;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+
+        /* Navigation Tabs */
+        .tabs {
+            display: flex;
+            border-bottom: 2px solid var(--border-light);
+            margin-bottom: 20px;
+            gap: 5px;
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+            scrollbar-width: none; 
+        }
+        
+        .tabs::-webkit-scrollbar { display: none; }
+
+        .tab-btn {
+            font-family: inherit;
+            background: none;
+            border: none;
+            outline: none;
+            padding: 12px 16px;
+            min-height: 44px; 
+            cursor: pointer;
+            font-size: 0.9rem;
+            font-weight: 600;
+            color: var(--text-muted);
+            border-bottom: 3px solid transparent;
+            transition: all 0.15s ease;
+            white-space: nowrap;
+        }
+
+        .tab-btn:hover { color: var(--medical-blue); background-color: rgba(0, 0, 0, 0.02); }
+        .tab-btn.active { color: var(--medical-blue); border-bottom-color: var(--medical-blue); }
+
+        .tab-content { display: none; animation: fadeIn 0.3s ease; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
+        .tab-content.active { display: block; }
+
+        .card {
+            background-color: var(--bg-card);
+            border: 1px solid var(--border-light);
+            border-radius: 6px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+        }
+
+        h2 { font-size: 1.25rem; color: var(--medical-blue); margin-bottom: 15px; font-weight: 600; }
+        h3 { font-size: 1.05rem; color: var(--slate-teal); margin: 15px 0 10px 0; font-weight: 600; border-bottom: 1px solid var(--border-light); padding-bottom: 4px; }
+
+        table { width: 100%; border-collapse: collapse; margin: 10px 0; font-size: 0.85rem; }
+        th, td { border: 1px solid var(--border-light); padding: 10px; text-align: left; vertical-align: top; }
+        th { background-color: #f8fafc; color: var(--medical-blue); font-weight: 600; text-transform: uppercase; font-size: 0.75rem; }
+        tr:nth-child(even) td { background-color: #fafbfc; }
+
+        .clinical-alert { background-color: var(--accent-red-light); border-left: 4px solid var(--accent-red); padding: 15px; border-radius: 4px; margin: 15px 0; }
+        .legal-alert { background-color: #fffaf0; border-left: 4px solid #dd6b20; padding: 15px; border-radius: 4px; margin: 15px 0; }
+        .clinical-alert h4 { color: var(--accent-red); font-size: 0.95rem; font-weight: 700; margin-bottom: 6px; text-transform: uppercase; }
+        .legal-alert h4 { color: #c05621; font-size: 0.95rem; font-weight: 700; margin-bottom: 6px; text-transform: uppercase; }
+
+        .rec-list { list-style: none; margin-bottom: 15px; }
+        .rec-item { position: relative; padding-left: 18px; margin-bottom: 8px; font-size: 0.9rem; }
+        .rec-item::before { content: "•"; position: absolute; left: 4px; color: var(--slate-teal); font-weight: bold; font-size: 1.2rem; top: -3px; }
+
+        .grid-2 { display: grid; grid-template-columns: 1fr; gap: 15px; }
+        .grid-3 { display: grid; grid-template-columns: 1fr; gap: 15px; }
+        @media (min-width: 600px) { .grid-3 { grid-template-columns: 1fr 1fr; } }
+        @media (min-width: 850px) { .grid-2 { grid-template-columns: 1fr 1fr; } .grid-3 { grid-template-columns: 1fr 1fr 1fr; } }
+
+        .sub-card { background-color: #f8fafc; border: 1px solid var(--border-light); border-radius: 4px; padding: 15px; }
+
+        .interactive-tool { background-color: #edf2f7; border-radius: 6px; padding: 15px; margin-top: 15px; }
+        label { display: block; font-size: 0.8rem; font-weight: 700; text-transform: uppercase; color: var(--medical-blue); margin-bottom: 6px; }
+        select { width: 100%; background-color: var(--bg-card); border: 1px solid var(--border-light); padding: 12px; font-family: inherit; font-size: 0.95rem; border-radius: 6px; margin-bottom: 15px; color: var(--text-main); appearance: none; -webkit-appearance: none; background-image: url("data:image/svg+xml;charset=US-ASCII,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%22292.4%22%20height%3D%22292.4%22%3E%3Cpath%20fill%3D%22%231a365d%22%20d%3D%22M287%2069.4a17.6%2017.6%200%200%200-13-5.4H18.4c-5%200-9.3%201.8-12.9%205.4A17.6%2017.6%200%200%200%200%2082.2c0%205%201.8%209.3%205.4%2012.9l128%20127.9c3.6%203.6%207.8%205.4%2012.8%205.4s9.2-1.8%2012.8-5.4L287%2095c3.5-3.5%205.4-7.8%205.4-12.8%200-5-1.9-9.2-5.5-12.8z%22%2F%3E%3C%2Fsvg%3E"); background-repeat: no-repeat; background-position: right 15px top 50%; background-size: 12px auto; padding-right: 40px; }
+        
+        .btn-submit { background-color: var(--medical-blue); color: white; border: none; width: 100%; padding: 14px 24px; min-height: 44px; font-size: 0.9rem; font-weight: 600; border-radius: 6px; cursor: pointer; transition: background-color 0.15s ease; text-transform: uppercase; letter-spacing: 0.5px; }
+        @media (min-width: 600px) { .btn-submit { width: auto; } }
+        .btn-submit:hover { background-color: var(--medical-blue-hover); }
+
+        .results-panel { margin-top: 15px; background-color: var(--bg-card); border: 1px solid var(--border-light); border-left: 4px solid var(--slate-teal); padding: 15px; border-radius: 4px; min-height: 60px; transform-origin: top center; }
+        @keyframes pulseUpdate { 0% { transform: scale(0.99); opacity: 0.5; background-color: #e6fffa; } 50% { transform: scale(1.01); background-color: #e6fffa; } 100% { transform: scale(1); opacity: 1; background-color: var(--bg-card); } }
+        .results-panel.updated { animation: pulseUpdate 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94); }
+
+        /* Abbreviation Styling & Toast Notification */
+        .abbr {
+            color: var(--slate-teal);
+            cursor: pointer;
+            font-weight: 600;
+            position: relative;
+        }
+
+        #toast-container {
+            visibility: hidden;
+            min-width: 250px;
+            max-width: 90%;
+            background-color: #2d3748;
+            color: #ffffff;
+            text-align: center;
+            border-radius: 8px;
+            padding: 14px 18px;
+            position: fixed;
+            z-index: 1000;
+            left: 50%;
+            bottom: max(30px, env(safe-area-inset-bottom));
+            transform: translateX(-50%);
+            font-size: 0.9rem;
+            font-weight: 600;
+            box-shadow: 0px 10px 15px -3px rgba(0,0,0,0.3);
+            opacity: 0;
+            transition: opacity 0.3s ease, bottom 0.3s ease;
+        }
+
+        #toast-container.show {
+            visibility: visible;
+            opacity: 1;
+            /* Pops up slightly higher than baseline */
+            bottom: max(50px, calc(env(safe-area-inset-bottom) + 20px)); 
+        }
+
+        .glossary-term { font-weight: 600; color: var(--medical-blue); margin-right: 5px; }
+        
+        footer { text-align: center; padding: 20px 0; font-size: 0.8rem; color: var(--text-muted); border-top: 1px solid var(--border-light); margin-top: 30px; padding-bottom: max(20px, env(safe-area-inset-bottom)); }
+    </style>
+</head>
+<body>
+
+<div id="toast-container">Definition</div>
+
+<div class="container">
+    
+    <header>
+        <span class="document-tag">Multidisciplinary Consensus Guidelines</span>
+        <h1><span class="abbr" onclick="showToast('Patient Blood Management')">PBM</span> Clinical Matrix</h1>
+        <div class="header-meta">
+            <span><strong>Source:</strong> Cheng et al. J Anesth Analg Crit Care (2026) 6:78</span>
+            <span><strong>Scope:</strong> Hong Kong &amp; Asia-Pacific Region</span>
+        </div>
+    </header>
+
+    <div class="tabs">
+        <button class="tab-btn active" onclick="switchPanel(event, 'neuro-panel')">1. Neurosurgery / Brain</button>
+        <button class="tab-btn" onclick="switchPanel(event, 'pillar1-panel')">2. Pillar I: <span class="abbr" onclick="showToast('Red Blood Cell')">RBC</span></button>
+        <button class="tab-btn" onclick="switchPanel(event, 'pillar2-panel')">3. Pillar II: Minimizing Loss</button>
+        <button class="tab-btn" onclick="switchPanel(event, 'pillar3-panel')">4. Pillar III: Triggers</button>
+        <button class="tab-btn" onclick="switchPanel(event, 'tool-panel')">5. Matrix Tool</button>
+        <button class="tab-btn" onclick="switchPanel(event, 'glossary-panel')">6. Glossary &amp; Legal</button>
+    </div>
+
+    <div id="neuro-panel" class="tab-content active">
+        <div class="card">
+            <h2>Neurosurgical &amp; Acute Brain Injury</h2>
+            <ul class="rec-list">
+                <li class="rec-item">High-risk, bleeding-prone field.</li>
+                <li class="rec-item">Special physiological rules apply to prevent localized ischemia.</li>
+            </ul>
+            
+            <div class="clinical-alert">
+                <h4>Critical Exception: Acute Brain Injury</h4>
+                <ul class="rec-list" style="margin-bottom: 0;">
+                    <li class="rec-item"><strong>Target Group:</strong> Adults with <span class="abbr" onclick="showToast('Traumatic Brain Injury')">TBI</span>, <span class="abbr" onclick="showToast('Intracranial Hemorrhage')">ICH</span>, or <span class="abbr" onclick="showToast('Subarachnoid Hemorrhage')">SAH</span> (<span class="abbr" onclick="showToast('Glasgow Coma Scale')">GCS</span> &le; 13).</li>
+                    <li class="rec-item"><strong>Rule:</strong> Standard restrictive strategy is <strong>NOT recommended</strong>.</li>
+                    <li class="rec-item"><strong>Strategy:</strong> Maintain <span class="abbr" onclick="showToast('Hemoglobin')">Hb</span> <strong>&ge; 9.0 g/dL</strong>.</li>
+                    <li class="rec-item"><strong>Rationale:</strong> Directly improves cerebral oxygen delivery and neurological recovery.</li>
+                </ul>
+            </div>
+
+            <div class="grid-2">
+                <div class="sub-card">
+                    <h3>Posture &amp; Venous Pressure</h3>
+                    <ul class="rec-list">
+                        <li class="rec-item"><strong>Prone Spine Surgery:</strong> Abdomen must be completely free from extrinsic compression.</li>
+                        <li class="rec-item"><strong>Rationale:</strong> Abdominal pressure compresses the <span class="abbr" onclick="showToast('Inferior Vena Cava')">IVC</span>, forcing epidural venous engorgement and massive surgical bleeding.</li>
+                    </ul>
+                </div>
+                <div class="sub-card">
+                    <h3>Coagulation &amp; Reversal</h3>
+                    <ul class="rec-list">
+                        <li class="rec-item"><strong><span class="abbr" onclick="showToast('Point-of-Care')">POC</span> Testing:</strong> <span class="abbr" onclick="showToast('Viscoelastic Hemostatic Assays')">VHA</span> (<span class="abbr" onclick="showToast('Rotational Thromboelastometry')">ROTEM</span>/<span class="abbr" onclick="showToast('Thromboelastography')">TEG</span>) strongly indicated for expected massive bleeding.</li>
+                        <li class="rec-item"><strong>Warfarin Reversal:</strong> Immediate <span class="abbr" onclick="showToast('Prothrombin Complex Concentrate')">PCC</span> + Vitamin K1 strictly indicated for <span class="abbr" onclick="showToast('Intracranial Hemorrhage')">ICH</span> or emergency neurosurgery.</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="pillar1-panel" class="tab-content">
+        <div class="card">
+            <h2>Pillar I: Optimizing <span class="abbr" onclick="showToast('Red Blood Cell')">RBC</span> Mass &amp; Anemia Management</h2>
+            
+            <h3>Preoperative Screening</h3>
+            <ul class="rec-list">
+                <li class="rec-item"><strong>Targets:</strong> &le; 13.0 g/dL (Males), &le; 12.0 g/dL (Females).</li>
+                <li class="rec-item"><strong>Protocol:</strong> Routine screening for all surgical populations (differentiate absolute vs. functional iron deficiency).</li>
+                <li class="rec-item"><strong>Execution:</strong> Utilize automated lab reflex testing and nurse-led <span class="abbr" onclick="showToast('Intravenous')">IV</span> iron clinics.</li>
+            </ul>
+
+            <div style="overflow-x: auto;">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Timeline Status</th>
+                            <th>Clinical Profile</th>
+                            <th>Recommended Action</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><strong>Elective (&gt; 4 Weeks)</strong></td>
+                            <td><span class="abbr" onclick="showToast('Hemoglobin')">Hb</span> low; Ferritin &lt; 30 &mu;g/L or <span class="abbr" onclick="showToast('Transferrin Saturation')">TSAT</span> &lt; 20%</td>
+                            <td>Delay surgery if possible. Start oral iron + Vitamin C. Recheck in 2-4 weeks.</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Urgent (&le; 2-4 Weeks)</strong></td>
+                            <td>Anemia confirmed; oral iron failed/intolerable</td>
+                            <td>Bypass oral routes. Administer <span class="abbr" onclick="showToast('Intravenous')">IV</span> Iron therapy immediately.</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Unstable / Immediate</strong></td>
+                            <td>Severe instability or emergency surgery</td>
+                            <td>Avoid transfusion if stable. Use restrictive single-unit orders if necessary.</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <h3>Special Subpopulations</h3>
+            <ul class="rec-list">
+                <li class="rec-item"><strong><span class="abbr" onclick="showToast('Chronic Kidney Disease')">CKD</span>:</strong> Ferritin target &le; 800 ng/mL, <span class="abbr" onclick="showToast('Transferrin Saturation')">TSAT</span> &le; 30%. Prefer <span class="abbr" onclick="showToast('Intravenous')">IV</span> iron. Consider <span class="abbr" onclick="showToast('Erythropoiesis-Stimulating Agents')">ESAs</span> (target 10-12 g/dL).</li>
+                <li class="rec-item"><strong>Gynae/Fibroids:</strong> If <span class="abbr" onclick="showToast('Hemoglobin')">Hb</span> &lt; 7 g/dL, use <span class="abbr" onclick="showToast('Gonadotropin-Releasing Hormone')">GnRH</span> agonists for 3-4 months pre-op. Prioritize early surgery.</li>
+                <li class="rec-item"><strong><span class="abbr" onclick="showToast('Gastrointestinal')">GI</span>/Bowel:</strong> Screen full profiles (B12, folate). <span class="abbr" onclick="showToast('Intravenous')">IV</span> iron explicitly preferred due to malabsorption.</li>
+                <li class="rec-item"><strong>Elderly:</strong> Audit polypharmacy (<span class="abbr" onclick="showToast('Nonsteroidal Anti-inflammatory Drug')">NSAIDs</span>/<span class="abbr" onclick="showToast('Proton Pump Inhibitor')">PPIs</span>). Prefer <span class="abbr" onclick="showToast('Intravenous')">IV</span> iron to bypass adherence barriers.</li>
+                <li class="rec-item"><strong>Obstetrics:</strong> Screen ferritin at initial visit and 24-28 weeks. <span class="abbr" onclick="showToast('Intravenous')">IV</span> iron permitted in 2nd/3rd trimesters if oral fails.</li>
+            </ul>
+        </div>
+    </div>
+
+    <div id="pillar2-panel" class="tab-content">
+        <div class="card">
+            <h2>Pillar II: Minimizing Perioperative Blood Loss</h2>
+            
+            <h3>Intraoperative Methodologies</h3>
+            <ul class="rec-list">
+                <li class="rec-item"><strong>Surgical:</strong> Maximize minimally invasive approaches, electrocautery, and intraoperative cell salvage.</li>
+                <li class="rec-item"><strong>Thermal:</strong> Strict normothermia (hypothermia blocks platelet function and increases bleeding by ~16%).</li>
+                <li class="rec-item"><strong>Hemodynamic:</strong> Continuous monitoring to optimize perfusion and avoid dilutional coagulopathy.</li>
+            </ul>
+
+            <div class="grid-2">
+                <div class="sub-card">
+                    <h3>Pharmacological Interventions</h3>
+                    <ul class="rec-list">
+                        <li class="rec-item"><strong><span class="abbr" onclick="showToast('Tranexamic Acid')">TXA</span>:</strong> Routine use decreases non-cardiac bleeding by 24%. Caution in cardiotomy (seizure risk).</li>
+                        <li class="rec-item"><strong>Fibrinogen:</strong> Empiric 2-g dose for massive hemorrhage while awaiting labs.</li>
+                        <li class="rec-item"><strong><span class="abbr" onclick="showToast('Prothrombin Complex Concentrate')">PCC</span>:</strong> First-line for urgent Warfarin reversal. Guide off-label use with <span class="abbr" onclick="showToast('Viscoelastic Hemostatic Assays')">VHA</span> to avoid thrombosis.</li>
+                    </ul>
+                </div>
+                <div class="sub-card">
+                    <h3>Obstetric Hemostasis (<span class="abbr" onclick="showToast('Postpartum Hemorrhage')">PPH</span> Prevention)</h3>
+                    <ul class="rec-list">
+                        <li class="rec-item"><strong>Routine:</strong> <span class="abbr" onclick="showToast('Controlled Cord Traction')">CCT</span> and delayed cord clamping.</li>
+                        <li class="rec-item"><strong>Uterotonics:</strong> Carbetocin for Cesarean/high-risk vaginal; Oxytocin for low-risk.</li>
+                        <li class="rec-item"><strong><span class="abbr" onclick="showToast('Placenta Accreta Spectrum')">PAS</span>:</strong> Consider placenta retention in situ for stable patients.</li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="sub-card" style="margin-top: 15px;">
+                <h3>Antithrombotic Interruption</h3>
+                <ul class="rec-list" style="margin-bottom: 0;">
+                    <li class="rec-item"><strong>Low-Risk Surgery:</strong> Continue antithrombotics seamlessly.</li>
+                    <li class="rec-item"><strong>Warfarin:</strong> Stop for mod/high-risk cases. Heparin bridge ONLY for severe embolic risk (e.g., mechanical valves).</li>
+                    <li class="rec-item"><strong><span class="abbr" onclick="showToast('Direct Oral Anticoagulants')">DOACs</span> & Antiplatelets:</strong> Stop <span class="abbr" onclick="showToast('Direct Oral Anticoagulants')">DOACs</span> and P2Y12 inhibitors. Continue Aspirin if bleeding risk allows.</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <div id="pillar3-panel" class="tab-content">
+        <div class="card">
+            <h2>Pillar III: Rationalizing Blood Components</h2>
+            <p><strong>Goal:</strong> Prevent adverse events, lower <span class="abbr" onclick="showToast('Length of Stay')">LOS</span>, and minimize costs without impacting 30-day survival.</p>
+            
+            <div style="overflow-x: auto;">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Clinical Subgroup Profile</th>
+                            <th><span class="abbr" onclick="showToast('Hemoglobin')">Hb</span> Trigger</th>
+                            <th>Directives</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><strong>Standard Surgical / Gen <span class="abbr" onclick="showToast('Intensive Care Unit')">ICU</span></strong></td>
+                            <td><strong>7.0 - 8.0 g/dL</strong></td>
+                            <td>Standard restrictive baseline for stable, non-cardiac patients.</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Acute Brain Injury (<span class="abbr" onclick="showToast('Glasgow Coma Scale')">GCS</span> &le; 13)</strong></td>
+                            <td><strong>&ge; 9.0 g/dL</strong></td>
+                            <td><strong>Exception:</strong> Liberal strategy mandatory for optimal neuro recovery.</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Stable <span class="abbr" onclick="showToast('Cardiovascular Disease')">CVD</span></strong></td>
+                            <td><strong>8.0 g/dL</strong></td>
+                            <td>Maintain unless systemic oxygen deficit signs emerge.</td>
+                        </tr>
+                        <tr>
+                            <td><strong><span class="abbr" onclick="showToast('Acute Coronary Syndrome')">ACS</span> / Heart Failure</strong></td>
+                            <td><strong>9.0 - 10.0 g/dL</strong></td>
+                            <td>Liberalize due to diminished reserve and active ischemia.</td>
+                        </tr>
+                        <tr>
+                            <td><strong><span class="abbr" onclick="showToast('Extracorporeal Membrane Oxygenation')">ECMO</span> (<span class="abbr" onclick="showToast('Venovenous')">VV</span> vs <span class="abbr" onclick="showToast('Venoarterial')">VA</span>)</strong></td>
+                            <td><strong>7.0 vs 8.0-9.0</strong></td>
+                            <td><span class="abbr" onclick="showToast('Venovenous')">VV</span>: 7.0 g/dL (respiratory focus). <span class="abbr" onclick="showToast('Venoarterial')">VA</span>: 8.0-9.0 g/dL (circulatory focus).</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="grid-2" style="margin-top: 15px;">
+                <div class="sub-card">
+                    <h3>The Single-Unit Mandate</h3>
+                    <ul class="rec-list" style="margin-bottom: 0;">
+                        <li class="rec-item">Order exactly <strong>1 unit</strong> for stable, non-bleeding patients.</li>
+                        <li class="rec-item">Mandatory clinical pause and post-transfusion <span class="abbr" onclick="showToast('Hemoglobin')">Hb</span> check required before any subsequent orders.</li>
+                    </ul>
+                </div>
+                <div class="sub-card">
+                    <h3>Institutional Controls</h3>
+                    <ul class="rec-list" style="margin-bottom: 0;">
+                        <li class="rec-item"><strong>Do Not Use:</strong> Alternate triggers (lactate, <span class="abbr" onclick="showToast('Near-Infrared Spectroscopy')">NIRS</span>) lack evidence. Stick to <span class="abbr" onclick="showToast('Hemoglobin')">Hb</span>.</li>
+                        <li class="rec-item"><strong><span class="abbr" onclick="showToast('Electronic Health Record')">EHR</span> Systems:</strong> Implement hard-stops/alerts for <span class="abbr" onclick="showToast('Hemoglobin')">Hb</span> 7-8 g/dL orders.</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="tool-panel" class="tab-content">
+        <div class="card">
+            <h2>Interactive Decision Matrix</h2>
+            <p>Select parameters to instantly generate protocol-aligned directives.</p>
+            
+            <div class="interactive-tool">
+                <div class="grid-2">
+                    <div>
+                        <label for="select-subgroup">1. Target Patient Profile:</label>
+                        <select id="select-subgroup">
+                            <option value="neuro_injury">Acute Brain Injury (TBI, ICH, SAH) GCS &le; 13</option>
+                            <option value="general_icu">General Non-Cardiac / Stable ICU</option>
+                            <option value="stable_cvd">Stable Cardiovascular Disease (CVD)</option>
+                            <option value="acs_hf">Acute Coronary Syndrome (ACS) / Active HF</option>
+                            <option value="vv_ecmo_profile">Venovenous ECMO (VV-ECMO)</option>
+                            <option value="va_ecmo_profile">Venoarterial ECMO (VA-ECMO)</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label for="select-hemorrhage">2. Hemorrhage Context:</label>
+                        <select id="select-hemorrhage">
+                            <option value="none">Controlled State / No Active Major Hemorrhage</option>
+                            <option value="warfarin_reversal">Acute Major Bleeding on Warfarin</option>
+                            <option value="prone_spine">Undergoing Prone Spine Surgery</option>
+                            <option value="unstable_massive">Acute Massive Hemorrhage (Unstable)</option>
+                        </select>
+                    </div>
+                </div>
+
+                <button class="btn-submit" onclick="runMatrixEvaluation()">Evaluate Alignment</button>
+
+                <div class="results-panel" id="matrix-output-box">
+                    Select criteria and execute evaluation to view targeted consensus directives.
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="glossary-panel" class="tab-content">
+        <div class="card">
+            <h2>Glossary of Terms &amp; Medical Disclaimer</h2>
+            
+            <div class="legal-alert">
+                <h4>Medical-Legal Disclaimer</h4>
+                <p style="font-size: 0.9rem; margin-bottom: 8px;"><strong>For Educational and Reference Purposes Only.</strong></p>
+                <p style="font-size: 0.9rem;">This dashboard provides a summarized rendering of the updated modified Delphi recommendations from the Hong Kong Society of Clinical Blood Management (HKSCBM). It is not intended to substitute professional medical judgment, diagnosis, or treatment. No medical-legal decisions should be based solely on this tool. <strong>The original peer-reviewed publication must be read in its entirety to obtain complete information, context, and contraindications.</strong> Patient care should always be individualized to specific clinical scenarios.</p>
+            </div>
+
+            <h3>Glossary of Abbreviations</h3>
+            <div class="grid-3" style="font-size: 0.85rem;">
+                <ul class="rec-list">
+                    <li class="rec-item"><span class="glossary-term">ACS:</span> Acute Coronary Syndrome</li>
+                    <li class="rec-item"><span class="glossary-term">CCT:</span> Controlled Cord Traction</li>
+                    <li class="rec-item"><span class="glossary-term">CKD:</span> Chronic Kidney Disease</li>
+                    <li class="rec-item"><span class="glossary-term">CVD:</span> Cardiovascular Disease</li>
+                    <li class="rec-item"><span class="glossary-term">DOAC:</span> Direct Oral Anticoagulant</li>
+                    <li class="rec-item"><span class="glossary-term">ECMO:</span> Extracorporeal Membrane Oxygenation</li>
+                    <li class="rec-item"><span class="glossary-term">EHR:</span> Electronic Health Record</li>
+                    <li class="rec-item"><span class="glossary-term">ESA:</span> Erythropoiesis-Stimulating Agents</li>
+                    <li class="rec-item"><span class="glossary-term">GCS:</span> Glasgow Coma Scale</li>
+                </ul>
+                <ul class="rec-list">
+                    <li class="rec-item"><span class="glossary-term">GI:</span> Gastrointestinal</li>
+                    <li class="rec-item"><span class="glossary-term">GnRH:</span> Gonadotropin-Releasing Hormone</li>
+                    <li class="rec-item"><span class="glossary-term">Hb:</span> Hemoglobin</li>
+                    <li class="rec-item"><span class="glossary-term">HF:</span> Heart Failure</li>
+                    <li class="rec-item"><span class="glossary-term">ICH:</span> Intracranial Hemorrhage</li>
+                    <li class="rec-item"><span class="glossary-term">ICU:</span> Intensive Care Unit</li>
+                    <li class="rec-item"><span class="glossary-term">IV:</span> Intravenous</li>
+                    <li class="rec-item"><span class="glossary-term">IVC:</span> Inferior Vena Cava</li>
+                    <li class="rec-item"><span class="glossary-term">LOS:</span> Length of Stay</li>
+                </ul>
+                <ul class="rec-list">
+                    <li class="rec-item"><span class="glossary-term">NIRS:</span> Near-Infrared Spectroscopy</li>
+                    <li class="rec-item"><span class="glossary-term">NSAID:</span> Nonsteroidal Anti-inflammatory Drug</li>
+                    <li class="rec-item"><span class="glossary-term">PAS:</span> Placenta Accreta Spectrum</li>
+                    <li class="rec-item"><span class="glossary-term">PBM:</span> Patient Blood Management</li>
+                    <li class="rec-item"><span class="glossary-term">PCC:</span> Prothrombin Complex Concentrate</li>
+                    <li class="rec-item"><span class="glossary-term">POC:</span> Point-of-Care</li>
+                    <li class="rec-item"><span class="glossary-term">PPH:</span> Postpartum Hemorrhage</li>
+                    <li class="rec-item"><span class="glossary-term">PPI:</span> Proton Pump Inhibitor</li>
+                    <li class="rec-item"><span class="glossary-term">RBC:</span> Red Blood Cell</li>
+                    <li class="rec-item"><span class="glossary-term">ROTEM:</span> Rotational Thromboelastometry</li>
+                    <li class="rec-item"><span class="glossary-term">SAH:</span> Subarachnoid Hemorrhage</li>
+                    <li class="rec-item"><span class="glossary-term">TBI:</span> Traumatic Brain Injury</li>
+                    <li class="rec-item"><span class="glossary-term">TEG:</span> Thromboelastography</li>
+                    <li class="rec-item"><span class="glossary-term">TSAT:</span> Transferrin Saturation</li>
+                    <li class="rec-item"><span class="glossary-term">TXA:</span> Tranexamic Acid</li>
+                    <li class="rec-item"><span class="glossary-term">VA:</span> Venoarterial</li>
+                    <li class="rec-item"><span class="glossary-term">VHA:</span> Viscoelastic Hemostatic Assays</li>
+                    <li class="rec-item"><span class="glossary-term">VV:</span> Venovenous</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <footer>
+        <p>HKSCBM Clinical Dashboard Platform • Optimized for iOS • Data restricted to 2026 Consensus • <br>Copyright @ Ultrapex Tech Ltd</p>
+    </footer>
+
+</div>
+
+<script>
+    // Tab Switching Logic
+    function switchPanel(event, panelId) {
+        var i, contents, buttons;
+        contents = document.getElementsByClassName("tab-content");
+        for (i = 0; i < contents.length; i++) {
+            contents[i].style.display = "none";
+            contents[i].classList.remove("active");
+        }
+        buttons = document.getElementsByClassName("tab-btn");
+        for (i = 0; i < buttons.length; i++) {
+            buttons[i].classList.remove("active");
+        }
+        document.getElementById(panelId).style.display = "block";
+        document.getElementById(panelId).classList.add("active");
+        event.currentTarget.classList.add("active");
+    }
+
+    // Interactive Matrix Logic
+    function runMatrixEvaluation() {
+        var subGroup = document.getElementById("select-subgroup").value;
+        var hemContext = document.getElementById("select-hemorrhage").value;
+        var outputBox = document.getElementById("matrix-output-box");
+        var renderHTML = "";
+
+        renderHTML += "<strong>[TARGET DEFINITION]</strong><br>";
+        
+        if (subGroup === "neuro_injury") {
+            renderHTML += "• <strong>Strategy:</strong> Liberal Transfusion (<span class=\"abbr\" onclick=\"showToast('Hemoglobin')\">Hb</span> &ge; 9.0 g/dL).<br>";
+            renderHTML += "• <strong>Directive:</strong> Avoid restrictive triggers; maintain <span class=\"abbr\" onclick=\"showToast('Hemoglobin')\">Hb</span> to support neuro recovery.<br><br>";
+        } else if (subGroup === "general_icu") {
+            renderHTML += "• <strong>Strategy:</strong> Restrictive Transfusion (<span class=\"abbr\" onclick=\"showToast('Hemoglobin')\">Hb</span> 7.0 - 8.0 g/dL).<br>";
+            renderHTML += "• <strong>Directive:</strong> Standard trigger. Replace multi-unit with single-unit protocols.<br><br>";
+        } else if (subGroup === "stable_cvd") {
+            renderHTML += "• <strong>Strategy:</strong> Maintain at <span class=\"abbr\" onclick=\"showToast('Hemoglobin')\">Hb</span> 8.0 g/dL.<br>";
+            renderHTML += "• <strong>Directive:</strong> Restrictive approach safe unless cardiorespiratory failure signs emerge.<br><br>";
+        } else if (subGroup === "acs_hf") {
+            renderHTML += "• <strong>Strategy:</strong> Liberalize to <span class=\"abbr\" onclick=\"showToast('Hemoglobin')\">Hb</span> 9.0 - 10.0 g/dL.<br>";
+            renderHTML += "• <strong>Directive:</strong> Higher reserve required for active ischemia/heart failure.<br><br>";
+        } else if (subGroup === "vv_ecmo_profile") {
+            renderHTML += "• <strong>Strategy:</strong> Target <span class=\"abbr\" onclick=\"showToast('Hemoglobin')\">Hb</span> 7.0 g/dL.<br>";
+            renderHTML += "• <strong>Directive:</strong> Primary respiratory support focus.<br><br>";
+        } else if (subGroup === "va_ecmo_profile") {
+            renderHTML += "• <strong>Strategy:</strong> Target <span class=\"abbr\" onclick=\"showToast('Hemoglobin')\">Hb</span> 8.0 - 9.0 g/dL.<br>";
+            renderHTML += "• <strong>Directive:</strong> Primary circulatory support focus.<br><br>";
+        }
+
+        renderHTML += "<strong>[OPERATIONAL DIRECTIVES]</strong><br>";
+        
+        if (hemContext === "warfarin_reversal") {
+            renderHTML += "• <strong>Emergency Action:</strong> Immediate <span class=\"abbr\" onclick=\"showToast('Prothrombin Complex Concentrate')\">PCC</span> + Vitamin K1.<br>";
+            renderHTML += "• <strong>Monitoring:</strong> Guide targeted factor matching with bedside <span class=\"abbr\" onclick=\"showToast('Viscoelastic Hemostatic Assays')\">VHA</span> (<span class=\"abbr\" onclick=\"showToast('Rotational Thromboelastometry')\">ROTEM</span>/<span class=\"abbr\" onclick=\"showToast('Thromboelastography')\">TEG</span>).";
+        } else if (hemContext === "prone_spine") {
+            renderHTML += "• <strong>OR Action:</strong> Free abdomen from mechanical compression to reverse epidural venous engorgement.<br>";
+            renderHTML += "• <strong>Support:</strong> Consider early 2-g fibrinogen if severe bleeding manifests.";
+        } else if (hemContext === "unstable_massive") {
+            renderHTML += "• <strong>Emergency Action:</strong> Suspend restrictive triggers and single-unit constraints.<br>";
+            renderHTML += "• <strong>Support:</strong> Deploy massive transfusion protocols guided by rapid <span class=\"abbr\" onclick=\"showToast('Viscoelastic Hemostatic Assays')\">VHA</span> updates.";
+        } else {
+            renderHTML += "• <strong>Maintenance Action:</strong> Enforce Single-Unit rule. Order 1 unit, perform clinical pause, recheck <span class=\"abbr\" onclick=\"showToast('Hemoglobin')\">Hb</span> before next unit.";
+        }
+
+        outputBox.innerHTML = renderHTML;
+        
+        outputBox.classList.remove("updated");
+        void outputBox.offsetWidth; 
+        outputBox.classList.add("updated");
+    }
+
+    // Toast Notification Logic
+    var toastTimeout;
+    function showToast(meaning) {
+        var toast = document.getElementById("toast-container");
+        toast.innerText = meaning;
+        
+        // Reset animation if tapped multiple times quickly
+        toast.classList.remove("show");
+        clearTimeout(toastTimeout);
+        
+        // Trigger reflow to restart transition
+        void toast.offsetWidth; 
+        
+        // Show toast
+        toast.classList.add("show");
+        
+        // Hide after 3 seconds
+        toastTimeout = setTimeout(function() {
+            toast.classList.remove("show");
+        }, 3000);
+    }
+</script>
+
+</body>
+</html>
